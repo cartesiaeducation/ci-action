@@ -105,11 +105,11 @@ runs:
               }
             ]
           }
-    
+
     - name: Store Slack message timestamp
       run: echo "SLACK_TS=${{ steps.slack.outputs.ts }}" >> $GITHUB_ENV
       shell: bash
-    
+
     - name: Get CPU cores count
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
       id: cpu_cores
@@ -120,7 +120,7 @@ runs:
           echo "::set-output name=cores::$(nproc)"
         fi
       shell: bash
-    
+
     - name: Slack - Docker
       uses: slackapi/slack-github-action@v1.25.0
       with:
@@ -138,7 +138,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Login to Docker
       run: echo "${{ inputs.git_token }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
       shell: bash
@@ -149,7 +149,7 @@ runs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.sha }}
-    
+
     - name: Mount project
       shell: bash
       run: |
@@ -165,6 +165,15 @@ runs:
         IS_CI="true" \
         SLACK_NOTIFICATION_TS="${{ steps.slack.outputs.ts }}" \
         docker compose -f docker-compose-ci.yml up -d
+
+    - name: Debug web container (status + logs)
+      run: |
+        docker ps -a
+        echo "---- web inspect ----"
+        docker inspect web --format '{{json .State}}' | jq .
+        echo "---- web logs (last 300) ----"
+        docker logs --tail=300 web || true
+      shell: bash
     
     # 📌 Mise à jour Slack - Début de l'installation
     - name: Slack - Installation des dépendances
@@ -184,7 +193,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Install dependencies
       shell: bash
       run: |
@@ -230,13 +239,13 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Build test environment
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
       shell: bash
       run: |
         docker exec -e NB_WORKERS=${{ steps.cpu_cores.outputs.cores }} -u www-data web bash ci.sh
-    
+
     - name: Slack - Exécution des tests PHPUnit
       if: env.SHOW_TEST_STATUS == 'true' && inputs.phpunit == 'true'
       uses: slackapi/slack-github-action@v1.25.0
@@ -257,8 +266,8 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-        
-        
+
+
     - name: PHPUnit
       id: phpunit
       uses: nick-fields/retry@v3
@@ -267,8 +276,8 @@ runs:
         timeout_minutes: 15
         max_attempts: 2
         command: docker exec -u www-data web bash -c "SYMFONY_DEPRECATIONS_HELPER=weak ./vendor/bin/paratest -p ${{ steps.cpu_cores.outputs.cores }} --runner=WrapperRunner --stop-on-failure"
-      
-    
+
+
     - name: Mettre à jour le statut de PHPUnit
       if: always() && env.SHOW_TEST_STATUS == 'true' && inputs.phpunit == 'true'
       run: |
@@ -278,9 +287,9 @@ runs:
           echo "PHPUNIT_STATUS=❌ Échec" >> $GITHUB_ENV
           echo "FINAL_BUILD_STATUS=failure" >> $GITHUB_ENV
         fi
-        
+
       shell: bash
-      
+
     - name: Slack - Mise à jour du statut Phpunit
       if: env.SHOW_TEST_STATUS == 'true' && inputs.phpunit == 'true'
       uses: slackapi/slack-github-action@v1.25.0
@@ -301,7 +310,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Slack - Exécution des tests Jest
       if: env.SHOW_TEST_STATUS == 'true' && inputs.jest == 'true'
       uses: slackapi/slack-github-action@v1.25.0
@@ -322,7 +331,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Jest
       id: jest
       uses: nick-fields/retry@v3
@@ -331,7 +340,7 @@ runs:
         timeout_minutes: 15
         max_attempts: 2
         command: docker exec -u www-data web bash -c "${{ inputs.jest_command }}"
-    
+
     - name: Mettre à jour le statut de Jest
       if: always() && env.SHOW_TEST_STATUS == 'true' && inputs.jest == 'true'
       run: |
@@ -342,7 +351,7 @@ runs:
           echo "FINAL_BUILD_STATUS=failure" >> $GITHUB_ENV
         fi
       shell: bash
-      
+
     - name: Slack - Mise à jour du statut Jest
       if: env.SHOW_TEST_STATUS == 'true' && inputs.jest == 'true'
       uses: slackapi/slack-github-action@v1.25.0
@@ -363,7 +372,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-        
+
     - name: Slack - Exécution des tests Behat
       if: env.SHOW_TEST_STATUS == 'true' && inputs.behat == 'true'
       uses: slackapi/slack-github-action@v1.25.0
@@ -384,7 +393,7 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Behat
       id: behat
       uses: nick-fields/retry@v3
@@ -393,7 +402,7 @@ runs:
         timeout_minutes: 15
         max_attempts: 2
         command: docker exec -u www-data web bash -c "./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure"
-        
+
     - name: Mettre à jour le statut de Behat
       if: always() && env.SHOW_TEST_STATUS == 'true' && inputs.behat == 'true'
       run: |
@@ -427,13 +436,13 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Build server assets
       if: success() && inputs.transfer_assets == 'true' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-'))
       shell: bash
       run: |
         docker exec -u www-data web bash build-server-assets.sh
-    
+
     - name: Copy public/dist from container to host
       if: success() && inputs.transfer_assets == 'true' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-'))
       run: |
@@ -441,7 +450,7 @@ runs:
         docker cp web:/var/www/$PROJECT_NAME/public/dist ./public-dist-${{ github.sha }}
         docker cp web:/var/www/$PROJECT_NAME/public/bundles ./public-bundles-${{ github.sha }}
       shell: bash
-    
+
     - name: Setup SSH Keys
       if: success() && inputs.transfer_assets == 'true' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-'))
       uses: webfactory/ssh-agent@v0.9.0
@@ -456,7 +465,7 @@ runs:
         rsync -avz --delete ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
         rsync -avz --delete ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
       shell: bash
-    
+
     - name: Transfer artifact to the demo
       if: success() && github.ref == 'refs/heads/master' && inputs.ip_demo && inputs.transfer_assets == 'true' && inputs.deploy_to_demo == 'true'
       run: |
@@ -465,7 +474,7 @@ runs:
         rsync -avz --delete ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
         rsync -avz --delete ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
       shell: bash
-    
+
     - name: Transfer artifact to the prod
       if: success() && github.ref == 'refs/heads/master' && inputs.ip_prod && inputs.transfer_assets == 'true' && inputs.deploy_to_prod == 'true'
       run: |
@@ -474,7 +483,7 @@ runs:
         rsync -avz --delete ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
         rsync -avz --delete ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
       shell: bash
-    
+
     - name: Générer le message Slack final
       if: always()
       run: |
@@ -522,7 +531,7 @@ runs:
         payload-file-path: "${{ github.workspace }}/slack_payload.json"
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
-    
+
     - name: Deploy to recette
       uses: cartesiaeducation/deploy-action@v1
       if: startsWith(github.ref, 'refs/heads/release-') && inputs.deploy_to_recette == 'true'
@@ -535,7 +544,7 @@ runs:
         stage: 'recette'
         branch: ${{ github.ref_name }}
         git_ref: ${{ github.sha }}
-    
+
     - name: Deploy to demo
       uses: cartesiaeducation/deploy-action@v1
       if: github.ref == 'refs/heads/master' && inputs.deploy_to_demo == 'true'
@@ -548,7 +557,7 @@ runs:
         stage: 'staging'
         branch: 'master'
         git_ref: ${{ github.sha }}
-    
+
     - name: Deploy to prod
       uses: cartesiaeducation/deploy-action@v1
       if: github.ref == 'refs/heads/master' && inputs.deploy_to_prod == 'true'
@@ -561,7 +570,7 @@ runs:
         stage: 'prod'
         branch: 'master'
         git_ref: ${{ github.sha }}
-    
+
     - name: Create Sentry release
       if: github.ref == 'refs/heads/master' && inputs.deploy_to_prod == 'true'
       uses: getsentry/action-release@v1
