@@ -413,6 +413,9 @@ runs:
         # Copy Symfony test logs
         docker cp web:/var/www/$(echo "${{ github.repository }}" | cut -d'/' -f2)/var/log/test.log ./behat-artifacts/symfony-test.log 2>/dev/null || echo "No test.log found"
 
+        # Copy HTTP Mock debug log
+        docker cp web:/tmp/http-mock-debug.log ./behat-artifacts/http-mock-debug.log 2>/dev/null || echo "No http-mock-debug.log found"
+
         # Copy Behat screenshots
         docker cp web:/var/www/behat/$(echo "${{ github.repository }}" | cut -d'/' -f2)/. ./behat-artifacts/screenshots/ 2>/dev/null || echo "No screenshots found"
 
