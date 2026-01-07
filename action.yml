@@ -401,7 +401,46 @@ runs:
       with:
         timeout_minutes: 15
         max_attempts: 2
-        command: docker exec -u www-data web bash -c "./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure"
+        command: |
+          docker exec -u www-data web bash -c "./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure 2>&1 | tee /tmp/behat-output.log"
+          docker cp web:/tmp/behat-output.log ./behat-output.log || true
+
+    - name: Collect Behat logs and screenshots on failure
+      if: always() && inputs.behat == 'true' && steps.behat.outcome == 'failure'
+      run: |
+        mkdir -p ./behat-artifacts
+
+        # Copy Symfony test logs
+        docker cp web:/var/www/$(echo "${{ github.repository }}" | cut -d'/' -f2)/var/log/test.log ./behat-artifacts/symfony-test.log 2>/dev/null || echo "No test.log found"
+
+        # Copy Behat screenshots
+        docker cp web:/var/www/behat/$(echo "${{ github.repository }}" | cut -d'/' -f2)/. ./behat-artifacts/screenshots/ 2>/dev/null || echo "No screenshots found"
+
+        # Copy behat output
+        cp ./behat-output.log ./behat-artifacts/ 2>/dev/null || true
+
+        # Extract failed scenarios from behat output
+        if [ -f "./behat-output.log" ]; then
+          echo "=== FAILED SCENARIOS ===" > ./behat-artifacts/failed-summary.txt
+          grep -A 50 "Scénarios échoués\|Failed scenarios" ./behat-output.log >> ./behat-artifacts/failed-summary.txt 2>/dev/null || true
+          echo "" >> ./behat-artifacts/failed-summary.txt
+          echo "=== ERROR DETAILS ===" >> ./behat-artifacts/failed-summary.txt
+          grep -B 5 -A 20 "Exception\|Error\|│" ./behat-output.log >> ./behat-artifacts/failed-summary.txt 2>/dev/null || true
+        fi
+
+        # Create error summary for Slack (max 3000 chars)
+        if [ -f "./behat-artifacts/failed-summary.txt" ]; then
+          head -c 2500 ./behat-artifacts/failed-summary.txt > ./behat-artifacts/slack-summary.txt
+        fi
+      shell: bash
+
+    - name: Upload Behat artifacts
+      if: always() && inputs.behat == 'true' && steps.behat.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: behat-failure-logs-${{ github.run_id }}
+        path: ./behat-artifacts/
+        retention-days: 7
 
     - name: Mettre à jour le statut de Behat
       if: always() && env.SHOW_TEST_STATUS == 'true' && inputs.behat == 'true'
@@ -411,6 +450,15 @@ runs:
         else
           echo "BEHAT_STATUS=❌ Échec" >> $GITHUB_ENV
           echo "FINAL_BUILD_STATUS=failure" >> $GITHUB_ENV
+
+          # Store error summary for Slack
+          if [ -f "./behat-artifacts/slack-summary.txt" ]; then
+            # Escape special characters for JSON
+            BEHAT_ERRORS=$(cat ./behat-artifacts/slack-summary.txt | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g' | head -c 2500)
+            echo "BEHAT_ERRORS<<EOF" >> $GITHUB_ENV
+            echo "$BEHAT_ERRORS" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
         fi
       shell: bash
       
@@ -488,9 +536,17 @@ runs:
       if: always()
       run: |
         FILE_PATH="${GITHUB_WORKSPACE}/slack_payload.json"
-        
+
         echo "📂 Création du fichier JSON : $FILE_PATH"
-        
+
+        # Build error block if there are Behat errors
+        ERROR_BLOCK=""
+        if [ -f "./behat-artifacts/slack-summary.txt" ] && [ -s "./behat-artifacts/slack-summary.txt" ]; then
+          # Read and escape the error summary for JSON
+          ERRORS=$(cat ./behat-artifacts/slack-summary.txt | head -c 1500 | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/\t/  /g' | tr '\n' ' ' | sed 's/  */ /g')
+          ERROR_BLOCK=",{\"title\": \"🔍 Error Details\", \"value\": \"\`\`\`${ERRORS}\`\`\`\", \"short\": false}"
+        fi
+
         cat <<EOF > "$FILE_PATH"
         {
           "text": "Repository: <https://github.com/${{ github.repository }}|${{ github.repository }}> - Build Status in branch \`${{ github.ref_name }}\`: ${{ env.FINAL_BUILD_STATUS }} - Build Link: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Click here for build details>",
@@ -512,12 +568,12 @@ runs:
                 "title": "Behat",
                 "short": true,
                 "value": "${{ env.BEHAT_STATUS }}"
-              }
+              }${ERROR_BLOCK}
             ]
           }]
         }
         EOF
-        
+
         echo "✅ Fichier JSON généré avec succès."
       shell: bash
     
