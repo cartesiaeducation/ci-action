@@ -187,6 +187,16 @@ runs:
       run: docker load -i /tmp/docker-web-image.tar
       shell: bash
 
+    - name: Pull Docker web image
+      if: steps.docker-cache.outputs.cache-hit != 'true'
+      run: docker pull ghcr.io/${{ inputs.git_organization }}/docker/web:latest
+      shell: bash
+
+    - name: Save Docker web image for cache
+      if: steps.docker-cache.outputs.cache-hit != 'true'
+      run: docker save ghcr.io/${{ inputs.git_organization }}/docker/web:latest -o /tmp/docker-web-image.tar
+      shell: bash
+
     - name: Mount project
       shell: bash
       run: |
@@ -202,11 +212,6 @@ runs:
         IS_CI="true" \
         SLACK_NOTIFICATION_TS="${{ steps.slack.outputs.ts }}" \
         docker compose -f docker-compose-ci.yml up -d
-
-    - name: Save Docker web image for cache
-      if: steps.docker-cache.outputs.cache-hit != 'true'
-      run: docker save ghcr.io/${{ inputs.git_organization }}/docker/web:latest -o /tmp/docker-web-image.tar
-      shell: bash
 
     - name: Debug web container (status + logs)
       run: |
