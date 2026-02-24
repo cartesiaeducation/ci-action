@@ -187,26 +187,21 @@ runs:
       run: echo "week=$(date +%Y-W%W)" >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Cache Docker web image
+    - name: Cache Docker images
       id: docker-cache
       uses: actions/cache@v4
       with:
-        path: /tmp/docker-web-image.tar
-        key: docker-web-${{ steps.docker-week.outputs.week }}
+        path: /tmp/docker-images.tar
+        key: docker-images-${{ steps.docker-week.outputs.week }}
 
-    - name: Load cached Docker image
+    - name: Load cached Docker images
       if: steps.docker-cache.outputs.cache-hit == 'true'
-      run: docker load -i /tmp/docker-web-image.tar
+      run: docker load -i /tmp/docker-images.tar
       shell: bash
 
-    - name: Pull Docker web image
+    - name: Snapshot Docker images before compose
       if: steps.docker-cache.outputs.cache-hit != 'true'
-      run: docker pull ghcr.io/${{ inputs.git_organization }}/docker/web:latest
-      shell: bash
-
-    - name: Save Docker web image for cache
-      if: steps.docker-cache.outputs.cache-hit != 'true'
-      run: docker save ghcr.io/${{ inputs.git_organization }}/docker/web:latest -o /tmp/docker-web-image.tar
+      run: docker images --format '{{.Repository}}:{{.Tag}}' | sort > /tmp/images-before.txt
       shell: bash
 
     - name: Mount project
@@ -224,6 +219,17 @@ runs:
         IS_CI="true" \
         SLACK_NOTIFICATION_TS="${{ steps.slack.outputs.ts }}" \
         docker compose -f docker-compose-ci.yml up -d
+
+    - name: Save Docker images for cache
+      if: steps.docker-cache.outputs.cache-hit != 'true'
+      run: |
+        docker images --format '{{.Repository}}:{{.Tag}}' | sort > /tmp/images-after.txt
+        NEW_IMAGES=$(comm -13 /tmp/images-before.txt /tmp/images-after.txt | grep -v '<none>')
+        if [ -n "$NEW_IMAGES" ]; then
+          echo "Saving new images: $NEW_IMAGES"
+          docker save $NEW_IMAGES -o /tmp/docker-images.tar
+        fi
+      shell: bash
 
     - name: Debug web container (status + logs)
       run: |
