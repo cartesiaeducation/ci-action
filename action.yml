@@ -164,10 +164,22 @@ runs:
         key: npm-${{ hashFiles('package-lock.json') }}
         restore-keys: npm-
 
+    - name: Cache Symfony bundles assets
+      uses: actions/cache@v4
+      with:
+        path: public/bundles
+        key: bundles-${{ hashFiles('composer.lock') }}
+
+    - name: Cache Vite build
+      uses: actions/cache@v4
+      with:
+        path: public/dist
+        key: vite-${{ hashFiles('public/dev/**', 'package-lock.json', 'buildozer.config.js') }}
+
     - name: Fix cache permissions for Docker
       run: |
-        mkdir -p vendor node_modules
-        chmod -R a+rwX vendor node_modules
+        mkdir -p vendor node_modules public/bundles public/dist
+        chmod -R a+rwX vendor node_modules public/bundles public/dist
       shell: bash
 
     - name: Get Docker image cache key
