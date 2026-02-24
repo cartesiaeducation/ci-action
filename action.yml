@@ -115,9 +115,9 @@ runs:
       id: cpu_cores
       run: |
         if [ -n "${{ inputs.nb_workers }}" ]; then
-          echo "::set-output name=cores::${{ inputs.nb_workers }}"
+          echo "cores=${{ inputs.nb_workers }}" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=cores::$(nproc)"
+          echo "cores=$(nproc)" >> $GITHUB_OUTPUT
         fi
       shell: bash
 
@@ -149,6 +149,43 @@ runs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.sha }}
+
+    - name: Cache Composer dependencies
+      if: hashFiles('composer.lock') != ''
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: composer-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-
+
+    - name: Cache node_modules
+      if: hashFiles('package-lock.json') != ''
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: npm-${{ hashFiles('package-lock.json') }}
+        restore-keys: npm-
+
+    - name: Cache Symfony bundles assets
+      if: hashFiles('composer.lock') != ''
+      uses: actions/cache@v4
+      with:
+        path: public/bundles
+        key: bundles-${{ hashFiles('composer.lock') }}
+
+    - name: Cache Vite build
+      if: hashFiles('buildozer.config.js') != ''
+      uses: actions/cache@v4
+      with:
+        path: public/dist
+        key: vite-${{ hashFiles('public/dev/**', 'package-lock.json', 'buildozer.config.js') }}
+
+    - name: Fix cache permissions for Docker
+      run: |
+        for dir in vendor node_modules public/bundles public/dist; do
+          if [ -d "$dir" ]; then chmod -R a+rwX "$dir"; fi
+        done
+      shell: bash
 
     - name: Mount project
       shell: bash
