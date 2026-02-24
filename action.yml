@@ -150,6 +150,43 @@ runs:
       with:
         ref: ${{ github.sha }}
 
+    - name: Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: composer-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-
+
+    - name: Cache node_modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: npm-${{ hashFiles('package-lock.json') }}
+        restore-keys: npm-
+
+    - name: Fix cache permissions for Docker
+      run: |
+        mkdir -p vendor node_modules
+        chmod -R a+rwX vendor node_modules
+      shell: bash
+
+    - name: Get Docker image cache key
+      id: docker-week
+      run: echo "week=$(date +%Y-W%W)" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Cache Docker web image
+      id: docker-cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/docker-web-image.tar
+        key: docker-web-${{ steps.docker-week.outputs.week }}
+
+    - name: Load cached Docker image
+      if: steps.docker-cache.outputs.cache-hit == 'true'
+      run: docker load -i /tmp/docker-web-image.tar
+      shell: bash
+
     - name: Mount project
       shell: bash
       run: |
@@ -165,6 +202,11 @@ runs:
         IS_CI="true" \
         SLACK_NOTIFICATION_TS="${{ steps.slack.outputs.ts }}" \
         docker compose -f docker-compose-ci.yml up -d
+
+    - name: Save Docker web image for cache
+      if: steps.docker-cache.outputs.cache-hit != 'true'
+      run: docker save ghcr.io/${{ inputs.git_organization }}/docker/web:latest -o /tmp/docker-web-image.tar
+      shell: bash
 
     - name: Debug web container (status + logs)
       run: |
