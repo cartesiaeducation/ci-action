@@ -145,9 +145,7 @@ runs:
 
     - name: Setup Docker with layer caching
       if: inputs.docker_layer_cache == 'true'
-      uses: useblacksmith/setup-docker@v1
-      with:
-        cache: true
+      uses: useblacksmith/setup-docker-builder@v1
 
     - name: Login to Docker
       run: echo "${{ inputs.git_token }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
