@@ -1,0 +1,59 @@
+#!/bin/bash
+
+remote="$1"
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # Only trigger on push to main branch
+  if [[ "$remote_ref" != "refs/heads/main" ]]; then
+    continue
+  fi
+
+  # Skip if pushing tags (avoid recursion from --no-verify tag push below)
+  if [[ "$local_ref" == refs/tags/* ]]; then
+    continue
+  fi
+
+  # Get latest version tag
+  latest_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+  version=${latest_tag#v}
+  IFS='.' read -r major minor patch <<< "$version"
+
+  echo ""
+  echo "Current version: $latest_tag"
+  echo ""
+  echo "  1) patch  → v$major.$minor.$((patch + 1))"
+  echo "  2) minor  → v$major.$((minor + 1)).0"
+  echo "  3) major  → v$((major + 1)).0.0"
+  echo ""
+  if [ -t 0 ] && [ -e /dev/tty ]; then
+    read -p "Version bump [1/2/3] (default: 1): " choice </dev/tty
+  else
+    echo "Non-interactive mode: defaulting to patch"
+  fi
+
+  case ${choice:-1} in
+    1) new_version="$major.$minor.$((patch + 1))" ;;
+    2) new_version="$major.$((minor + 1)).0" ;;
+    3) new_version="$((major + 1)).0.0" ;;
+    *) echo "Invalid choice, aborting push."; exit 1 ;;
+  esac
+
+  new_major="${new_version%%.*}"
+
+  echo ""
+  echo "→ Tagging v$new_version (+ v$new_major)"
+
+  git tag -f "v$new_version"
+  git tag -f "v$new_major"
+
+  # Push tags after branch push (--no-verify to avoid recursion)
+  (
+    # Wait for the branch push to complete
+    sleep 3
+    git push "$remote" -f "v$new_version" "v$new_major" --no-verify 2>/dev/null
+    echo "→ Tags v$new_version and v$new_major pushed"
+  ) &
+
+done
+
+exit 0

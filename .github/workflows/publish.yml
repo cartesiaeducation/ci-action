@@ -2,8 +2,8 @@ name: Publish Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   release:
@@ -19,7 +19,7 @@ jobs:
           channel-id: ${{ vars.SLACK_NOTIFICATION_CHANNEL_ID }}
           payload: |
             {
-              "text": "<https://github.com/${{ github.repository }}|${{ github.repository }}> : Publishing started in branch `${{ github.ref_name }}` (In Progress) - Build Link: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Click here for build details>",
+              "text": "<https://github.com/${{ github.repository }}|${{ github.repository }}> : Publishing started for tag `${{ github.ref_name }}` (In Progress) - Build Link: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Click here for build details>",
               "attachments": [
                 {
                   "pretext": "Publishing started",
@@ -37,32 +37,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
-        id: get_version
-        run: |
-          VERSION=$(jq -r .version package.json)
-          MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "MAJOR_VERSION=$MAJOR_VERSION" >> $GITHUB_ENV
-
-      - name: Set up Git
-        run: |
-          git config --global user.email "${{ secrets.GIT_EMAIL }}"
-          git config --global user.name "${{ secrets.GIT_USERNAME }}"
-
-      - name: Create Git tags
-        env:
-          GITHUB_TOKEN: ${{ secrets.CR_PAT }}
-        run: |
-          git tag -f v${{ env.VERSION }}
-          git tag -f v${{ env.MAJOR_VERSION }}
-          git push origin -f v${{ env.VERSION }}
-          git push origin -f v${{ env.MAJOR_VERSION }}
-
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "v${{ env.VERSION }}" --title "Release v${{ env.VERSION }}" --generate-notes --latest
+        run: gh release create "${{ github.ref_name }}" --title "Release ${{ github.ref_name }}" --generate-notes --latest
 
       - uses: slackapi/slack-github-action@v1.25.0
         if: always()
@@ -73,7 +51,7 @@ jobs:
           update-ts: ${{ steps.slack.outputs.ts }}
           payload: |
             {
-              "text": "Repository: <https://github.com/${{ github.repository }}|${{ github.repository }}> - Publishing Status in branch `${{ github.ref_name }}`: ${{ job.status }} - Build Link: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Click here for build details>",
+              "text": "Repository: <https://github.com/${{ github.repository }}|${{ github.repository }}> - Publishing Status for tag `${{ github.ref_name }}`: ${{ job.status }} - Build Link: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Click here for build details>",
               "attachments": [
                 {
                   "pretext": "Publishing Status: ${{ job.status }}",
