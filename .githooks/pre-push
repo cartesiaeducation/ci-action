@@ -3,8 +3,8 @@
 remote="$1"
 
 while read local_ref local_sha remote_ref remote_sha; do
-  # Only trigger on push to main branch
-  if [[ "$remote_ref" != "refs/heads/main" ]]; then
+  # Only trigger on push to master branch
+  if [[ "$remote_ref" != "refs/heads/master" ]]; then
     continue
   fi
 
