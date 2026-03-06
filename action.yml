@@ -191,7 +191,8 @@ runs:
     - name: Fix cache permissions for Docker
       run: |
         for dir in vendor node_modules public/bundles public/dist; do
-          if [ -d "$dir" ]; then chmod -R a+rwX "$dir"; fi
+          mkdir -p "$dir"
+          chmod -R a+rwX "$dir"
         done
       shell: bash
 
