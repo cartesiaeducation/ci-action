@@ -78,6 +78,10 @@ inputs:
   sentry_project:
     description: 'Sentry project token'
     required: true
+  docker_layer_cache:
+    description: 'Enable Docker layer caching (requires Blacksmith runner)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -138,6 +142,12 @@ runs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ inputs.slack_bot_token }}
+
+    - name: Setup Docker with layer caching
+      if: inputs.docker_layer_cache == 'true'
+      uses: useblacksmith/setup-docker@v1
+      with:
+        cache: true
 
     - name: Login to Docker
       run: echo "${{ inputs.git_token }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
