@@ -448,7 +448,7 @@ runs:
         timeout_minutes: 15
         max_attempts: 2
         command: |
-          docker exec -u www-data web bash -c "./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure 2>&1 | tee /tmp/behat-output.log"
+          docker exec -u www-data web bash -c "set -o pipefail && ./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure 2>&1 | tee /tmp/behat-output.log"
           docker cp web:/tmp/behat-output.log ./behat-output.log || true
 
     - name: Collect Behat logs and screenshots on failure
