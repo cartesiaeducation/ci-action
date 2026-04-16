@@ -560,9 +560,9 @@ runs:
       run: |
         REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
         ssh-keyscan -H ${{ inputs.ip_recette }} >> ~/.ssh/known_hosts
-        rsync -avz --delete --info=stats2 ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./vendor-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./vendor-${{ github.sha }} www-data@${{ inputs.ip_recette }}:/var/www/$REPO_NAME/tmp
       shell: bash
 
     - name: Transfer artifact to the demo
@@ -570,9 +570,9 @@ runs:
       run: |
         REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
         ssh-keyscan -H ${{ inputs.ip_demo }} >> ~/.ssh/known_hosts
-        rsync -avz --delete --info=stats2 ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./vendor-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./vendor-${{ github.sha }} www-data@${{ inputs.ip_demo }}:/var/www/$REPO_NAME/tmp
       shell: bash
 
     - name: Transfer artifact to the prod
@@ -580,9 +580,9 @@ runs:
       run: |
         REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
         ssh-keyscan -H ${{ inputs.ip_prod }} >> ~/.ssh/known_hosts
-        rsync -avz --delete --info=stats2 ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
-        rsync -avz --delete --info=stats2 ./vendor-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-dist-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
+        rsync -avz --delete --info=stats2 --no-progress ./vendor-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
       shell: bash
 
     - name: Générer le message Slack final
