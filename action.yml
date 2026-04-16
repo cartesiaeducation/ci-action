@@ -692,3 +692,11 @@ runs:
         SENTRY_PROJECT: ${{ inputs.sentry_project }}
       with:
         environment: prod
+
+    - name: Restore workspace permissions
+      if: always()
+      shell: bash
+      run: |
+        sudo chown -R "$(id -u)":"$(id -g)" "$GITHUB_WORKSPACE" || true
+        sudo find "$GITHUB_WORKSPACE" -type d -exec chmod u+rwx {} \; || true
+        sudo find "$GITHUB_WORKSPACE" -type f -exec chmod u+rw {} \; || true
