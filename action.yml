@@ -449,7 +449,9 @@ runs:
         max_attempts: 2
         command: |
           docker exec -u www-data web bash -c "set -o pipefail && ./vendor/bin/behat -l ${{ steps.cpu_cores.outputs.cores }} --suite=default --stop-on-failure 2>&1 | tee /tmp/behat-output.log"
+          BEHAT_EXIT=$?
           docker cp web:/tmp/behat-output.log ./behat-output.log || true
+          exit $BEHAT_EXIT
 
     - name: Collect Behat logs and screenshots on failure
       if: always() && inputs.behat == 'true' && steps.behat.outcome == 'failure'
