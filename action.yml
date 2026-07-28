@@ -560,6 +560,11 @@ runs:
       shell: bash
 
     - name: Write SSH key manually
+      # Only needed by the rsync "Transfer artifact" steps below, which are all
+      # gated on transfer_assets. Without this guard it runs unconditionally and,
+      # on runners where ~/.ssh is not owned by the runner user, the chmod fails
+      # and reddens the whole job even when no transfer happens.
+      if: success() && inputs.transfer_assets == 'true'
       shell: bash
       run: |
         mkdir -p ~/.ssh
@@ -597,6 +602,15 @@ runs:
         rsync -az --delete --info=stats2 --no-progress ./public-bundles-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
         rsync -az --delete --info=stats2 --no-progress ./vendor-${{ github.sha }} www-data@${{ inputs.ip_prod }}:/var/www/$REPO_NAME/tmp
       shell: bash
+
+    # FINAL_BUILD_STATUS only tracks test outcomes (PHPUnit/Jest/Behat). A failure
+    # in any other step (SSH key, build, transfer, deploy) would otherwise leave it
+    # at 'success' and post a misleading green Slack while the job is red. failure()
+    # is true as soon as any previous step failed, so flip it here.
+    - name: Reflect real job status in the final build status
+      if: failure()
+      shell: bash
+      run: echo "FINAL_BUILD_STATUS=failure" >> $GITHUB_ENV
 
     - name: Générer le message Slack final
       if: always()
