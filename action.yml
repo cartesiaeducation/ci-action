@@ -38,6 +38,10 @@ inputs:
     description: 'Run the TypeScript typecheck before tests'
     required: false
     default: 'false'
+  anonymization_check:
+    description: 'Check that every database column is declared in config/myanon.conf or config/myanon-kept-columns.yaml'
+    required: false
+    default: 'false'
   typecheck_command:
     description: 'Custom typecheck command'
     required: false
@@ -299,6 +303,12 @@ runs:
       shell: bash
       run: |
         docker exec -e NB_WORKERS=${{ steps.cpu_cores.outputs.cores }} -u www-data web bash ci.sh
+
+    - name: Check the anonymization of backups
+      if: inputs.anonymization_check == 'true' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')
+      shell: bash
+      run: |
+        docker exec -u www-data web php bin/console cartesia:anonymization:check --env=test
 
     - name: Slack - Exécution des tests PHPUnit
       if: env.SHOW_TEST_STATUS == 'true' && inputs.phpunit == 'true'
