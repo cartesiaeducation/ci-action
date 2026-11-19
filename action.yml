@@ -42,6 +42,10 @@ inputs:
     description: 'Check that every database column is declared in config/myanon.conf or config/myanon-kept-columns.yaml'
     required: false
     default: 'false'
+  phpstan:
+    description: 'Run PHPStan on every push; errors already in phpstan-baseline.neon are accepted'
+    required: false
+    default: 'false'
   typecheck_command:
     description: 'Custom typecheck command'
     required: false
@@ -309,6 +313,13 @@ runs:
       shell: bash
       run: |
         docker exec -u www-data web php bin/console cartesia:anonymization:check --env=test
+
+    - name: PHPStan
+      if: inputs.phpstan == 'true'
+      shell: bash
+      run: |
+        docker exec -u www-data web php bin/console cache:warmup --env=dev
+        docker exec -u www-data web php vendor/bin/phpstan analyse --memory-limit=2G --no-progress
 
     - name: Slack - Exécution des tests PHPUnit
       if: env.SHOW_TEST_STATUS == 'true' && inputs.phpunit == 'true'
