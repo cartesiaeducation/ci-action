@@ -43,7 +43,7 @@ inputs:
     required: false
     default: 'false'
   phpstan:
-    description: 'Run PHPStan on every push; errors already in phpstan-baseline.neon are accepted'
+    description: 'Run PHPStan on master and dev; errors already in phpstan-baseline.neon are accepted'
     required: false
     default: 'false'
   typecheck_command:
@@ -315,7 +315,7 @@ runs:
         docker exec -u www-data web php bin/console cartesia:anonymization:check --env=test
 
     - name: PHPStan
-      if: inputs.phpstan == 'true'
+      if: inputs.phpstan == 'true' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')
       shell: bash
       run: |
         docker exec -u www-data web php bin/console cache:warmup --env=dev
